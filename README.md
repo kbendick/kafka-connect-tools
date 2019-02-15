@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/datamountaineer/kafka-connect-tools.svg?branch=master)](https://travis-ci.org/datamountaineer/kafka-connect-tools)
-[<img src="https://img.shields.io/badge/latest%20release-v1.0.3-blue.svg?label=latest%20release"/>](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22kafka-connect-cli%22)
+[![Build Status](https://travis-ci.org/Landoop/kafka-connect-tools.svg?branch=master)](https://travis-ci.org/Landoop/kafka-connect-tools)
+[<img src="https://img.shields.io/badge/latest%20release-v1.0.6-blue.svg?label=latest%20release"/>](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22kafka-connect-cli%22)
 
 Connect tools is Maven
 
@@ -7,11 +7,11 @@ Connect tools is Maven
 <dependency>
 	<groupId>com.datamountaineer</groupId>
 	<artifactId>kafka-connect-cli</artifactId>
-	<version>1.0.3</version>
+	<version>1.0.6</version>
 </dependency>
 ```
 
-##Requirements
+## Requirements
 
 * Java 1.8
 * Gradle 3
@@ -27,7 +27,7 @@ out of band info to `stderr` and non-zero exit status on error. Commands
 dealing with configuration expect or produce data in .properties 
 style: `key=value` lines and comments start with a `#`.
 
-    connect-cli 1.0.3
+    connect-cli 1.0.6
     Usage: connect-cli [ps|get|rm|create|run|diff|status|plugins|describe|validate|restart|pause|resume] [options] [<connector-name>]
 
       --help
@@ -37,46 +37,54 @@ style: `key=value` lines and comments start with a `#`.
       -f <value> | --format <value>
             Format of the config, default is PROPERTIES. Valid options are 'properties' and 'json'.
 
-    Command: ps
-    list active connectors names.
+      Command: ps
+      list active connectors names.
+      
+      Command: get
+      get the configuration of the specified connector.
+      
+      Command: rm
+      remove the specified connector.
+      
+      Command: create
+      create the specified connector with the config from stdin; the connector cannot already exist.
+      
+      Command: run
+      create or update the specified connector with the config from stdin.
+      
+      Command: diff
+      diff the specified connector with the config from stdin.
+      
+      Command: status
+      get connector and it's task(s) state(s).
+      
+      Command: plugins
+      list the available connector class plugins on the classpath.
+      
+      Command: describe
+      list the configurations for a connector class plugin on the classpath.
+      
+      Command: pause
+      pause the specified connector.
+      
+      Command: restart
+      restart the specified connector.
+      
+      Command: resume
+      resume the specified connector.
+      
+      Command: validate
+      validate the connector config from stdin against a connector class plugin on the classpath.
+      
+      Command: task_ps
+      list the tasks belonging to a connector.
+      
+      Command: task_status
+      get the status of a connector task.
+      
+      Command: task_restart
+      restart the specified connector task.
     
-    Command: get
-    get the configuration of the specified connector.
-    
-    Command: rm
-    remove the specified connector.
-    
-    Command: create
-    create the specified connector with the config from stdin; the connector cannot already exist.
-    
-    Command: run
-    create or update the specified connector with the config from stdin.
-    
-    Command: diff
-    diff the specified connector with the config from stdin.
-    
-    Command: status
-    get connector and it's task(s) state(s).
-    
-    Command: plugins
-    list the available connector class plugins on the classpath.
-    
-    Command: describe
-    list the configurations for a connector class plugin on the classpath.
-    
-    Command: pause
-    pause the specified connector.
-    
-    Command: restart
-    restart the specified connector.
-    
-    Command: resume
-    resume the specified connector.
-    
-    Command: validate
-    validate the connector config from stdin against a connector class plugin on the classpath.   
-            
-            
 You can override the default endpoint by setting an environment variable `KAFKA_CONNECT_REST` i.e.
 
     export KAFKA_CONNECT_REST="http://myserver:myport"
@@ -363,6 +371,41 @@ Example:
      - taskId: 0
        taskState: RUNNING
        workerId: 10.0.0.9:8083          
+
+List all Tasks of a Connector
+-----------------------------
+
+Command: `task_ps`
+
+Example:
+
+    bin/connect-cli tasks_ps cassandra-sink
+    - cassandra-sink task 0
+      connector.class: com.datamountaineer.streamreactor.connect.cassandra.sink.CassandraSinkConnector
+      bootstrap.servers: kafka-broker1:6667,kafka-broker2:6667,kafka-broker3:6667
+      producer.schema.registry.url:http://schema-registry:8081
+      ...
+      
+Get the status of a Connector Task
+----------------------------------
+
+Command: `task_status`
+
+Example:
+
+    bin/connect-cli task_status cassandra-sink 0
+    taskId: 0
+    taskState: RUNNING
+    workerId: 10.0.0.9:8083
+    
+Restart a Connector Task
+------------------------
+
+Command: `task_restart`
+
+Example:
+
+    bin/connect-cli task_restart cassandra-sink 0
 
 Misc
 ====

@@ -31,6 +31,8 @@ trait Formatter {
   def connectorStatus(s:ConnectorTaskStatus): String
   def connectorPlugins(s: Seq[ConnectorPlugins]) : String
   def connectorPluginsValidate(s: ConnectorPluginsValidate, validate: Boolean, props: Map[String, String] = Map.empty) : String
+  def tasks(tasks: List[TaskInfo]): String
+  def taskStatus(t:TaskStatus): String
 }
 
 /** A collection of methods that translate the output of the API into a string representation that pleases the human eye. */
@@ -50,14 +52,15 @@ class HumanFormatter extends Formatter {
   override def connectorInfo(connectorInfo: ConnectorInfo): String =
     s"""${connectorInfo.name}:
        |  config:
-       |${connectorInfo.config.toList.map{ kv => s"    ${kv._1}: ${kv._2}"}.mkString("\n")}
+       |${connectorInfo.config.toList.map{ kv => s"    ${kv._1}: ${if (kv._1.contains("password") || kv._1.contains("secret")) "**********" else kv._2}"}.mkString("\n")}
        |  task ids: ${connectorInfo.tasks.map{ t=>t.task.toString}.mkString(sep = "; ")}${Console.RESET}""".stripMargin
 
   def connectorDiff(current: Map[String,String], provided: Map[String,String], diff: MapDifference[String,String]): String = ???
   def connectorStatus(s:ConnectorTaskStatus): String = ???
   def connectorPlugins(s: Seq[ConnectorPlugins]): String = ???
   def connectorPluginsValidate(s: ConnectorPluginsValidate, validate: Boolean, props: Map[String, String] = Map.empty) : String = ???
-
+  def tasks(tasks: List[TaskInfo]): String = ???
+  def taskStatus(t:TaskStatus): String = ???
 }
 
 /** A collection of methods that translate the output of the API into a string representation that is compatible with the .properties format. */
@@ -75,7 +78,7 @@ class PropertiesFormatter extends Formatter {
     */
   override def connectorInfo(connectorInfo: ConnectorInfo): String =
     s"""${Console.GREEN}#Connector `${connectorInfo.name}`:
-       |${connectorInfo.config.toList.map{ kv => s"${kv._1}=${kv._2}"}.mkString("\n")}
+       |${connectorInfo.config.toList.map{ kv => s"${kv._1}=${if (kv._1.contains("password") || kv._1.contains("secret")) "**********" else kv._2}"}.mkString("\n")}
        |#task ids: ${connectorInfo.tasks.map{ t=>t.task.toString}.mkString(sep = "; ")}${Console.RESET}""".stripMargin
 
   /**
@@ -100,16 +103,35 @@ class PropertiesFormatter extends Formatter {
        |#entries only in provided config:
        |${diff.entriesOnlyOnRight.asScala.mkString("\n")}""".stripMargin
 
-  def trace(t:Option[String], indent:String="") =
+  private def trace(t:Option[String], indent:String="") =
     t match {
       case Some(trace) => s"${indent}trace: ${Console.RED} ${trace}\n ${Console.RESET}"
       case None => ""
     }
 
-  def taskStatus(t:TaskStatus) =
+  override def taskStatus(t:TaskStatus) =
+    s"taskId: ${t.id}\n" +
+    s"taskState: ${if (t.state.equals("RUNNING")) Console.GREEN else Console.RED}${t.state}${Console.RESET}\n" + trace(t.trace,"    ") +
+    s"workerId: ${t.worker_id}\n"
+
+  private def childTaskStatus(t:TaskStatus) =
     s"  - taskId: ${t.id}\n" +
     s"    taskState: ${if (t.state.equals("RUNNING")) Console.GREEN else Console.RED}${t.state}${Console.RESET}\n" + trace(t.trace,"    ") +
     s"    workerId: ${t.worker_id}\n"
+
+  private def childTaskInfo(t:TaskInfo) =
+    s"  - ${t.id.connector} task ${t.id.task}\n" +
+    s"${childTaskInfoConfig(t.config)}\n\n"
+
+  private def childTaskInfoConfig(config: Map[String, String]) =
+    config.map(e => ("      " + e._1, e._2))
+        .map(_.productIterator.mkString(": "))
+        .mkString("\n")
+
+  override def tasks(tasks: List[TaskInfo]) =
+    s"""
+       |${tasks.map(childTaskInfo).mkString("")}
+     """.stripMargin
 
   override def connectorStatus(s:ConnectorTaskStatus): String =
     s"connectorState: ${if (s.connector.state.equals("RUNNING")) Console.GREEN else Console.RED} ${s.connector.state}${Console.RESET}\n"+
@@ -117,10 +139,10 @@ class PropertiesFormatter extends Formatter {
       trace(s.connector.trace) +
       s"numberOfTasks: ${s.tasks.length}\n"+
     s"tasks:\n"+
-    s"${s.tasks.map(taskStatus).mkString("")}"
+    s"${s.tasks.map(childTaskStatus).mkString("")}"
 
   override def connectorPlugins(s: Seq[ConnectorPlugins]): String = {
-    s.map(_.toString).sorted.map(s=> s"Class name: $s").mkString("\n")
+    s.map(s => s"Class name: ${s.`class`}, Type: ${s.`type`}, Version: ${s.version.getOrElse("")}").mkString("\n")
   }
 
   override def connectorPluginsValidate(s: ConnectorPluginsValidate, validate: Boolean = false, props: Map[String, String] = Map.empty): String = {
